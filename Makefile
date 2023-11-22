@@ -1,14 +1,11 @@
-APP=${shell basename $(shell git remote get-url origin)}
+APP=$(shell basename $(shell git remote get-url origin))
 REGISTRY=scottishwidow
-TARGETOS=linux
-TARGERARCH=amd64
-
 VERSION=$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)
 
+.PHONY: format lint test get clean linux mac windows arm build
 
 format:
 	gofmt -s -w ./
-
 
 lint:
 	golint
@@ -19,17 +16,26 @@ test:
 get:
 	go get
 
-
 build: format get
-	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${shell dpkg --print-architecture} go build -v -o kbot -ldflags "-X="github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}
+	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -o kbot -ldflags "-X=github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}"
+
+linux:
+	$(MAKE) build GOOS=linux GOARCH=amd64
+
+mac:
+	$(MAKE) build GOOS=darwin GOARCH=amd64
+
+windows:
+	$(MAKE) build GOOS=windows GOARCH=amd64
+
+arm:
+	$(MAKE) build GOOS=linux GOARCH=arm64
 
 image:
-	docker build . -t ${REGISTRY}/${APP}:${VERSION}-$(TARGERARCH)
+	docker buildx build --platform ${GOOS}/${GOARCH} . -t ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
 
 push:
-	docker push ${REGISTRY}/${APP}:${VERSION}-${TARGERARCH}
-
-
+	docker push ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
 
 clean:
 	rm -rf kbot 
