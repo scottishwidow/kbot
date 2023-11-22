@@ -40,3 +40,4 @@ push:
 
 clean:
 	rm -rf kbot 
+	docker rmi ${APP}:${VERSION}-${GOARCH} || true
