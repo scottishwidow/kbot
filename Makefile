@@ -32,11 +32,13 @@ arm:
 	$(MAKE) build GOOS=linux GOARCH=arm64
 
 image:
-	docker buildx build --platform ${GOOS}/${GOARCH} . -t ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
+	docker buildx build --platform $${GOOS:=linux}/$${GOARCH:=amd64} . -t ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
 
 push:
 	docker push ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
 
 clean:
 	rm -rf kbot 
-	docker rmi ${APP}:${VERSION}-${GOARCH} || true
+	@if docker images ${REGISTRY}/${APP}:$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)- -q | grep -q '.' ; then \
+		docker rmi ${REGISTRY}/${APP}:$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)-; \
+	fi
