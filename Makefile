@@ -1,11 +1,23 @@
+ifeq '$(findstring ;,$(PATH))' ';'
+    detected_OS := windows
+	detected_arch := amd64
+else
+    detected_OS := $(shell uname | tr '[:upper:]' '[:lower:]' 2> /dev/null || echo Unknown)
+    detected_OS := $(patsubst CYGWIN%,Cygwin,$(detected_OS))
+    detected_OS := $(patsubst MSYS%,MSYS,$(detected_OS))
+    detected_OS := $(patsubst MINGW%,MSYS,$(detected_OS))
+	detected_arch := $(shell dpkg --print-architecture 2>/dev/null || amd64)
+endif
+
 APP=$(shell basename $(shell git remote get-url origin))
-REGISTRY=scottishwidow
+REGESTRY=scottishwidow
 VERSION=$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)
-
-.PHONY: format lint test get clean linux mac windows arm build
-
+	
 format:
 	gofmt -s -w ./
+
+get:
+	go get
 
 lint:
 	golint
@@ -13,32 +25,38 @@ lint:
 test:
 	go test -v
 
-get:
-	go get
-
 build: format get
-	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -o kbot -ldflags "-X=github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}"
+	@printf "$GDetected OS/ARCH: $R$(detected_OS)/$(detected_arch)$D\n"
+	CGO_ENABLED=0 GOOS=$(detected_OS) GOARCH=$(detected_arch) go build -v -o kbot -ldflags "-X="github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}
 
-linux:
-	$(MAKE) build GOOS=linux GOARCH=amd64
+linux: format get
+	@printf "$GTarget OS/ARCH: $Rlinux/$(detected_arch)$D\n"
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(detected_arch) go build -v -o kbot -ldflags "-X="github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}
+	docker build --build-arg name=linux -t ${REGESTRY}/${APP}:${VERSION}-linux-$(detected_arch) .
 
-mac:
-	$(MAKE) build GOOS=darwin GOARCH=amd64
+windows: format get
+	@printf "$GTarget OS/ARCH: $Rwindows/$(detected_arch)$D\n"
+	CGO_ENABLED=0 GOOS=windows GOARCH=$(detected_arch) go build -v -o kbot -ldflags "-X="github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}
+	docker build --build-arg name=windows -t ${REGESTRY}/${APP}:${VERSION}-windows-$(detected_arch) .
 
-windows:
-	$(MAKE) build GOOS=windows GOARCH=amd64
+darwin:format get
+	@printf "$GTarget OS/ARCH: $Rdarwin/$(detected_arch)$D\n"
+	CGO_ENABLED=0 GOOS=darwin GOARCH=$(detected_arch) go build -v -o kbot -ldflags "-X="github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}
+	docker build --build-arg name=darwin -t ${REGESTRY}/${APP}:${VERSION}-darwin-$(detected_arch) .
 
-arm:
-	$(MAKE) build GOOS=linux GOARCH=arm64
+arm: format get
+	@printf "$GTarget OS/ARCH: $R$(detected_OS)/arm$D\n"
+	CGO_ENABLED=0 GOOS=$(detected_OS) GOARCH=arm go build -v -o kbot -ldflags "-X="github.com/scottishwidow/kbot/cmd.appVersion=${VERSION}
+	docker build --build-arg name=arm -t ${REGESTRY}/${APP}:${VERSION}-$(detected_OS)-arm .
 
-image:
-	docker buildx build --platform $${GOOS:=linux}/$${GOARCH:=amd64} . -t ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
+image: build
+	docker build . -t ${REGESTRY}/${APP}:${VERSION}-$(detected_arch)
 
 push:
-	docker push ${REGISTRY}/${APP}:${VERSION}-${GOARCH}
+	docker push ${REGESTRY}/${APP}:${VERSION}-$(detected_arch)
+
 
 clean:
-	rm -rf kbot 
-	@if docker images ${REGISTRY}/${APP}:$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)- -q | grep -q '.' ; then \
-		docker rmi ${REGISTRY}/${APP}:$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)-; \
-	fi
+	@rm -rf kbot; \
+	IMG1=$$(docker images -q | head -n 1); \
+	if [ -n "$${IMG1}" ]; then  docker rmi -f $${IMG1}; else printf "$RImage not found$D\n"; fi
