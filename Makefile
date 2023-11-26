@@ -1,5 +1,5 @@
 APP=$(shell basename $(shell git remote get-url origin))
-REGISTRY=scottishwidow
+REGISTRY=ghcr.io/scottishwidow
 VERSION=$(shell git describe --tags --abbrev=0)-$(shell git rev-parse --short HEAD)
 
 .PHONY: format lint test get clean linux mac windows arm build
