@@ -13,7 +13,7 @@ COPY . .
 
 RUN make build
 
-FROM --platform=$TARGETPLATFORM alpine:latest
+FROM alpine:latest
 
 WORKDIR /
 COPY --from=builder /go/src/app/kbot .
