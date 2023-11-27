@@ -1,24 +1,16 @@
-FROM --platform=$BUILDPLATFORM quay.io/projectquay/golang:1.20 as builder
+ARG name=build
 
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
-
-ENV GOOS=$TARGETOS
-ENV GOARCH=$TARGETARCH
+FROM quay.io/projectquay/golang:1.20 as builder
 
 WORKDIR /go/src/app
 COPY . .
 
-RUN make build
+RUN make $name
 
-FROM alpine:latest
-
+FROM scratch
 WORKDIR /
+
 COPY --from=builder /go/src/app/kbot .
-
-
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENTRYPOINT [ "./kbot" ]
