@@ -1,6 +1,6 @@
 APP=$(shell basename $(shell git remote get-url origin))
 REGISTRY=ghcr.io/scottishwidow
-# Use a more robust way to define VERSION to avoid trailing dashes
+
 VERSION=$(shell git describe --tags --always --dirty)-$(shell git rev-parse --short HEAD)
 
 .PHONY: format lint test get clean linux mac windows arm build image push
